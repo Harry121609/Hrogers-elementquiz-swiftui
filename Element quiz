@@ -1,0 +1,170 @@
+// ElementQuiz.swift
+// A single-file SwiftUI version of ElementQuiz
+// Designed to TEACH SwiftUI while staying clean and scalable
+
+import SwiftUI
+
+// MARK: - App Entry Point
+// Replaces AppDelegate + SceneDelegate + Storyboard entry point
+
+@main
+struct ElementQuizApp: App {
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+        }
+    }
+}
+
+//////////////////////////////////////////////////////////////
+// MARK: - MODEL
+//////////////////////////////////////////////////////////////
+
+// WHY: Strong typing > random arrays
+// Makes the data easier to scale and understand
+
+struct Element {
+    let name: String
+    let imageName: String
+}
+
+// Sample data
+let allElements: [Element] = [
+    Element(name: "Hydrogen", imageName: "element_1"),
+    Element(name: "Helium", imageName: "element_2"),
+    Element(name: "Lithium", imageName: "element_3"),
+    Element(name: "Carbon", imageName: "element_6"),
+    Element(name: "Oxygen", imageName: "element_8"),
+    Element(name: "Neon", imageName: "element_10"),
+    Element(name: "Gold", imageName: "element_79")
+]
+
+//////////////////////////////////////////////////////////////
+// MARK: - VIEWMODEL (Logic Layer)
+//////////////////////////////////////////////////////////////
+
+// WHY: Keeps logic OUT of the View (separation of concerns)
+
+@MainActor
+final class QuizViewModel: ObservableObject {
+    
+    // MARK: - Published State (auto UI updates)
+    
+    @Published private(set) var currentElement: Element
+    @Published private(set) var answerText: String?
+    @Published private(set) var score: Int = 0
+    @Published private(set) var hasAnswered: Bool = false
+    
+    private let elements: [Element]
+    private var currentIndex = 0
+    
+    init(elements: [Element] = allElements) {
+        self.elements = elements
+        self.currentElement = elements[0]
+    }
+    
+    // MARK: - Actions (replaces IBAction)
+    
+    func showAnswer() {
+        // WHY: Only allow answering once
+        guard !hasAnswered else { return }
+        
+        answerText = currentElement.name
+        score += 1
+        hasAnswered = true
+    }
+    
+    func nextElement() {
+        currentIndex = (currentIndex + 1) % elements.count
+        currentElement = elements[currentIndex]
+        
+        // Reset state
+        answerText = nil
+        hasAnswered = false
+    }
+}
+
+//////////////////////////////////////////////////////////////
+// MARK: - VIEW (UI Layer)
+//////////////////////////////////////////////////////////////
+
+// THINK: "Describe UI based on state"
+// NOT: "manually update UI like UIKit"
+
+struct ContentView: View {
+    
+    // MARK: - StateObject
+    // This View OWNS the ViewModel
+    
+    @StateObject private var viewModel = QuizViewModel()
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            
+            // MARK: - Score
+            Text("Score: \(viewModel.score)")
+                .font(.headline)
+            
+            Spacer()
+            
+            // MARK: - Image
+            Image(viewModel.currentElement.imageName)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 150, height: 150)
+                .animation(.easeInOut, value: viewModel.currentElement.imageName)
+            
+            Spacer()
+            
+            // MARK: - Answer Text
+            Text(viewModel.answerText ?? "Tap to reveal")
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundStyle(viewModel.answerText == nil ? .gray : .primary)
+                .animation(.easeIn, value: viewModel.answerText)
+            
+            Spacer()
+            
+            // MARK: - Buttons
+            
+            HStack(spacing: 20) {
+                
+                // Show Answer Button
+                Button(action: {
+                    viewModel.showAnswer()
+                }) {
+                    Text("Show Answer")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(viewModel.hasAnswered ? Color.gray : Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                }
+                .disabled(viewModel.hasAnswered)
+                
+                // Next Button
+                Button(action: {
+                    viewModel.nextElement()
+                }) {
+                    Text("Next")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                }
+            }
+            
+        }
+        .padding()
+        .background(Color(uiColor: .systemBackground))
+    }
+}
+
+//////////////////////////////////////////////////////////////
+// MARK: - Preview
+//////////////////////////////////////////////////////////////
+
+#Preview {
+    ContentView()
+}
